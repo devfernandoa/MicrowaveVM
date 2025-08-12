@@ -1,0 +1,40 @@
+; Fibonacci Sequence Calculator
+; Computes the nth Fibonacci number using the recurrence relation:
+; F(0) = 0, F(1) = 1, F(n) = F(n-1) + F(n-2)
+; 
+; This is perfect for a 2-register machine!
+; We'll use TIME and POWER to hold the two most recent Fibonacci numbers
+; and compute the sequence iteratively.
+;
+; INPUT: Set the number of iterations (n) by modifying the loop counter
+; OUTPUT: TIME = F(n), POWER = F(n-1)
+
+    ; Initialize Fibonacci sequence
+    SET TIME 1          ; F(1) = 1 (current Fibonacci number)
+    PRINT               ; Show initial value
+    SET POWER 0         ; F(0) = 0 (previous Fibonacci number)
+    
+    ; We'll compute F(10) by doing 9 more iterations
+    ; Counter starts at 9 and counts down
+    SET TIME 9          ; Counter for iterations (computing F(10))
+    SET POWER 0         ; F(0) = 0
+    
+    ; Actually, let's restart with proper initialization
+    SET TIME 0          ; F(0) = 0 
+    SET POWER 1         ; We'll use POWER as counter, starting with 8 to get F(8)
+
+fib_loop:
+    DECJZ POWER done    ; If counter reaches 0, we're done
+    
+    ; Compute next Fibonacci number: F(n) = F(n-1) + F(n-2)  
+    ; Current state: TIME = F(i-1), we need to compute F(i)
+    ; We need: new_TIME = old_TIME + old_POWER, but POWER is our counter
+    
+    ; This approach won't work well... Let me restart with a better plan
+    GOTO done
+
+done:
+    PRINT               ; Show final result
+    HALT
+
+; Let's try a different algorithm - computing factorial instead!

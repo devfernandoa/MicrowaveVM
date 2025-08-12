@@ -1,0 +1,27 @@
+; Popcorn Microwave Program
+; Simulates making popcorn in a microwave
+; 
+; Process:
+; 1. Set initial power level (70% = 70 units)
+; 2. Set cooking time (3 minutes = 180 seconds)
+; 3. Heat until time runs out
+; 4. Final power should be 0 (microwave stops)
+
+    ; Initialize microwave settings
+    SET POWER 70        ; Set power to 70% (moderate power for popcorn)
+    SET TIME 180        ; Set timer to 180 seconds (3 minutes)
+    PRINT               ; Show initial cooking time
+
+cooking_loop:
+    DECJZ TIME done     ; If time reaches 0, cooking is done
+    ; Print time every 30 seconds (show progress)
+    ; Simple approach: print occasionally during cooking
+    GOTO cooking_loop   ; Continue cooking
+
+done:
+    ; Cooking finished - ensure microwave stops
+    PRINT               ; Show final time (should be 0)
+    SET POWER 0         ; Turn off microwave
+    HALT                ; Popcorn is ready!
+
+; Expected result: TIME=0 (timer expired), POWER=0 (microwave off)

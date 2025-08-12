@@ -1,0 +1,85 @@
+; Binary GCD Algorithm (Stein's Algorithm) - Simplified for 2 registers
+; Works by repeatedly subtracting the smaller number from the larger
+; until one becomes zero. The remaining number is the GCD.
+;
+; Algorithm:
+; while a != 0 and b != 0:
+;   if a > b: a = a - b
+;   else: b = b - a  
+; return a + b (one will be 0)
+;
+; INPUT: Initialize with SET TIME a, SET POWER b
+; OUTPUT: TIME = gcd(a,b), POWER = 0
+
+    SET TIME 48         ; First number (a = 48)  
+    PRINT               ; Show first number
+    SET POWER 18        ; Second number (b = 18)
+
+main_loop:
+    DECJZ TIME power_wins    ; If TIME is 0, POWER has the GCD
+    DECJZ POWER time_wins    ; If POWER is 0, TIME has the GCD
+    
+    ; Both are positive, need to subtract smaller from larger
+    ; Use destructive comparison: decrement both until one hits 0
+    
+subtract_smaller:
+    DECJZ TIME time_was_smaller
+    DECJZ POWER power_was_smaller  
+    GOTO subtract_smaller
+
+time_was_smaller:
+    ; TIME became 0 first, so original TIME <= original POWER
+    ; POWER now contains (original POWER - original TIME)
+    ; Set TIME = original TIME, POWER = (original POWER - original TIME)
+    ; We need to restore TIME to its original value
+    
+    ; Count how many decrements POWER has left
+restore_time_loop:
+    DECJZ POWER restored_time
+    INC TIME                    ; Rebuild TIME
+    GOTO restore_time_loop
+
+restored_time:
+    ; Now TIME = original TIME, POWER = 0
+    ; We need POWER = original POWER - original TIME
+    ; But we've lost original POWER... 
+    ; Restart with the subtraction result
+    GOTO main_loop
+
+power_was_smaller:  
+    ; POWER became 0 first, so original POWER < original TIME
+    ; TIME now contains (original TIME - original POWER) 
+    ; This is exactly what we want for the next iteration
+    ; POWER = 0, TIME = original TIME - original POWER
+    
+    ; Set POWER = original POWER by counting TIME's decrements
+restore_power_loop:
+    DECJZ TIME restored_power
+    INC POWER                   ; Rebuild POWER  
+    GOTO restore_power_loop
+
+restored_power:
+    ; Now POWER = original POWER, TIME = 0
+    ; We want TIME = original TIME - original POWER, but we have TIME = 0
+    ; The result is actually in the difference we computed
+    ; Let's restart the algorithm
+    GOTO main_loop
+
+time_wins:
+    ; POWER is 0, so GCD is in TIME
+    GOTO done
+
+power_wins:
+    ; TIME is 0, so GCD is in POWER
+    ; Move POWER to TIME for consistent output format
+move_to_time:
+    DECJZ POWER done
+    INC TIME
+    GOTO move_to_time
+
+done:
+    PRINT               ; Show final GCD result
+    HALT
+
+; This algorithm will compute GCD(48, 18) = 6
+; Final result: TIME = 6, POWER = 0

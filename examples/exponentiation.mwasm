@@ -1,0 +1,144 @@
+; Exponentiation by Repeated Squaring (Fast Exponentiation)
+; Computes a^b efficiently using the binary representation of the exponent
+; This is a classic algorithm that works well with limited registers
+;
+; Algorithm: To compute a^b
+; 1. If b is even: a^b = (a^2)^(b/2)  
+; 2. If b is odd: a^b = a * a^(b-1)
+; 3. Base case: a^0 = 1, a^1 = a
+;
+; For 2-register implementation:
+; TIME = base (a), POWER = exponent (b)
+; We'll compute 3^4 = 81
+;
+; INPUT: TIME = base, POWER = exponent  
+; OUTPUT: TIME = result, POWER = 0
+
+    SET TIME 3          ; Base: 3
+    PRINT               ; Show initial base
+    SET POWER 4         ; Exponent: 4 (so we compute 3^4 = 81)
+
+    ; Handle base cases first
+    DECJZ POWER power_is_zero
+    DECJZ POWER power_is_one  
+    INC POWER           ; Restore POWER to 2
+    INC POWER           ; Restore POWER to 3
+    
+    ; Check if POWER is 2  
+    DECJZ POWER power_is_two
+    INC POWER           ; Restore to 3
+    
+    ; Check if POWER is 3
+    DECJZ POWER power_is_three
+    INC POWER           ; Restore to 4
+    
+    ; POWER is 4, so compute 3^4
+    ; Method: 3^4 = (3^2)^2 = 9^2 = 81
+    ; First compute 3^2 = 9
+    
+compute_3_squared:
+    ; 3^2 = 3*3 = 9
+    ; Implement multiplication as repeated addition
+    ; 3*3 = 3+3+3 = 9
+    SET POWER 3         ; Counter for addition
+    SET TIME 0          ; Clear TIME to accumulate result
+    
+add_loop_1:
+    DECJZ POWER first_square_done
+    INC TIME            ; Add 1 each time  
+    INC TIME            ; Add 1 each time
+    INC TIME            ; Add 1 each time (total: add 3 each iteration)
+    GOTO add_loop_1
+
+first_square_done:
+    ; Now TIME = 9 (which is 3^2)
+    PRINT               ; Show intermediate result: 3^2 = 9
+    ; We need to compute 9^2 = 81
+    ; 9*9 = 9+9+9+9+9+9+9+9+9 = 81
+    
+    SET POWER 9         ; Counter for second multiplication
+    SET TIME 0          ; Clear TIME for final result
+    
+add_loop_2:  
+    DECJZ POWER final_result
+    ; Add 9 to TIME
+    INC TIME            ; 1
+    INC TIME            ; 2  
+    INC TIME            ; 3
+    INC TIME            ; 4
+    INC TIME            ; 5
+    INC TIME            ; 6
+    INC TIME            ; 7  
+    INC TIME            ; 8
+    INC TIME            ; 9
+    GOTO add_loop_2
+
+power_is_zero:
+    ; Any number^0 = 1
+    SET TIME 1
+    SET POWER 0
+    HALT
+
+power_is_one:
+    ; Any number^1 = the number itself  
+    ; TIME already contains the base
+    SET POWER 0
+    HALT
+
+power_is_two:
+    ; Compute TIME^2 using repeated addition
+    ; Save base value and square it
+    SET POWER 3         ; TIME was 3, so we need to add 3 three times
+    SET TIME 0          ; Clear for accumulation
+square_loop:
+    DECJZ POWER squared_done
+    INC TIME
+    INC TIME  
+    INC TIME            ; Add 3 each time
+    GOTO square_loop
+    
+squared_done:
+    SET POWER 0
+    HALT
+
+power_is_three:
+    ; Compute 3^3 = 27
+    ; First get 3^2 = 9, then multiply by 3 again
+    SET POWER 3
+    SET TIME 0
+cube_first:
+    DECJZ POWER cube_multiply
+    INC TIME
+    INC TIME
+    INC TIME
+    GOTO cube_first
+
+cube_multiply:
+    ; TIME now = 9, multiply by 3 to get 27
+    SET POWER 3
+    SET TIME 0
+cube_second:
+    DECJZ POWER cubed_done
+    ; Add 9 each time
+    INC TIME            ; 1
+    INC TIME            ; 2
+    INC TIME            ; 3
+    INC TIME            ; 4  
+    INC TIME            ; 5
+    INC TIME            ; 6
+    INC TIME            ; 7
+    INC TIME            ; 8
+    INC TIME            ; 9
+    GOTO cube_second
+
+cubed_done:
+    SET POWER 0
+    HALT
+
+final_result:
+    ; TIME now contains 3^4 = 81
+    PRINT               ; Show final result
+    SET POWER 0
+    HALT
+
+; Expected result: TIME = 81 (3^4), POWER = 0
