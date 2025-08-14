@@ -1,0 +1,40 @@
+; Stack-based number reversal program
+; Demonstrates using stack to reverse a sequence of numbers
+; Input: Sequence 1, 2, 3, 4, 5
+; Output: Prints 5, 4, 3, 2, 1
+
+; Push numbers 1 through 5 onto stack
+SET TIME 1
+PUSH TIME
+
+SET TIME 2  
+PUSH TIME
+
+SET TIME 3
+PUSH TIME
+
+SET TIME 4
+PUSH TIME
+
+SET TIME 5
+PUSH TIME
+
+; Now stack contains [1, 2, 3, 4, 5] (top is 5)
+; Pop and print each number - they'll come out in reverse order
+
+POP TIME
+PRINT    ; Prints 5
+
+POP TIME  
+PRINT    ; Prints 4
+
+POP TIME
+PRINT    ; Prints 3
+
+POP TIME
+PRINT    ; Prints 2
+
+POP TIME
+PRINT    ; Prints 1
+
+HALT

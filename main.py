@@ -20,6 +20,8 @@ class MicrowaveVM:
       DECJZ R label     ; if R == 0: PC := label, else: R := R - 1
       GOTO label        ; PC := label
       PRINT             ; print current value of TIME register
+      PUSH R            ; push register value onto stack
+      POP R             ; pop value from stack into register
       HALT              ; stop
 
     Labels:
@@ -33,11 +35,13 @@ class MicrowaveVM:
         self.pc: int = 0
         self.halted: bool = False
         self.steps: int = 0
+        self.stack: List[int] = []
 
     # --- Assembler / Loader ---
     def load_program(self, source: str):
         self.program.clear()
         self.labels.clear()
+        self.stack.clear()
         self.pc = 0
         self.halted = False
         self.steps = 0
@@ -90,6 +94,12 @@ class MicrowaveVM:
             elif op == "PRINT":
                 if len(args) != 0:
                     raise ValueError(f"PRINT takes no args: {line}")
+            elif op == "PUSH":
+                if len(args) != 1 or args[0].upper() not in ("TIME", "POWER"):
+                    raise ValueError(f"PUSH expects register (TIME/POWER): {line}")
+            elif op == "POP":
+                if len(args) != 1 or args[0].upper() not in ("TIME", "POWER"):
+                    raise ValueError(f"POP expects register (TIME/POWER): {line}")
             elif op == "HALT":
                 if len(args) != 0:
                     raise ValueError(f"HALT takes no args: {line}")
@@ -143,6 +153,20 @@ class MicrowaveVM:
             print(f"TIME: {self.registers.get('TIME', 0)}")
             self.pc += 1
 
+        elif instr.op == "PUSH":
+            r = regname(instr.args[0])
+            value = self.registers.get(r, 0)
+            self.stack.append(value)
+            self.pc += 1
+
+        elif instr.op == "POP":
+            r = regname(instr.args[0])
+            if not self.stack:
+                raise RuntimeError("Cannot POP from empty stack")
+            value = self.stack.pop()
+            self.registers[r] = value
+            self.pc += 1
+
         elif instr.op == "HALT":
             print("BEEEEEEP!")
             self.halted = True
@@ -157,9 +181,22 @@ class MicrowaveVM:
     def state(self) -> Dict[str, int]:
         return dict(self.registers)
 
+    def stack_state(self) -> List[int]:
+        return list(self.stack)
+
+    def full_state(self) -> Dict:
+        return {
+            "registers": dict(self.registers),
+            "stack": list(self.stack),
+            "pc": self.pc,
+            "halted": self.halted,
+            "steps": self.steps
+        }
+
     def reset_registers(self, TIME: int = 0, POWER: int = 0):
         self.registers["TIME"] = int(TIME)
         self.registers["POWER"] = int(POWER)
+        self.stack.clear()
         self.pc = 0
         self.halted = False
         self.steps = 0
@@ -181,11 +218,11 @@ end:
 # 2) MULTIPLY via repeated addition:
 #    TIME := a * b, POWER := 0
 #    Uses TIME as accumulator, POWER as outer counter, and a temporary loop to add 'a' each time.
-#    To keep two-register purity, we preload TIME with 0 and “encode” multiplicand via repeated INCs before loop.
+#    To keep two-register purity, we preload TIME with 0 and "encode" multiplicand via repeated INCs before loop.
 MULT_PROGRAM = """
     ; Pre: TIME = 0, POWER = b
     ; Also assume we first built a copy of 'a' into TIME_A via a small bootstrap program,
-    ; but to stay 2-register, we’ll rebuild 'a' each inner loop by counting with POWER jumps.
+    ; but to stay 2-register, we'll rebuild 'a' each inner loop by counting with POWER jumps.
     ; Simpler approach: store a in TIME, b in POWER, then compute:
     ;   result := 0
     ;   repeat POWER times: result += a
@@ -216,8 +253,64 @@ MULT_PROGRAM = """
 outer:
     DECJZ POWER end          ; if POWER==0 -> end
     ; rebuild tmp := a by adding A times into TIME, but we need 'a'.
-    ; For a tiny demo, we’ll assume we preloaded TIME with 0 and then inserted 'a' INCs just before start.
-    ; Instead, here’s a tiny concrete multiplication example baked in:
+    ; For a tiny demo, we'll assume we preloaded TIME with 0 and then inserted 'a' INCs just before start.
+    ; Instead, here's a tiny concrete multiplication example baked in:
+    HALT
+end:
+    HALT
+"""
+
+# 3) STACK demo: demonstrates PUSH and POP operations
+STACK_PROGRAM = """
+    ; Demo program showing stack operations
+    ; Push TIME and POWER values onto stack, then pop them back in reverse order
+    
+    SET TIME 10         ; Set TIME = 10
+    SET POWER 20        ; Set POWER = 20
+    
+    PUSH TIME           ; Push 10 onto stack
+    PUSH POWER          ; Push 20 onto stack
+    
+    SET TIME 0          ; Clear TIME
+    SET POWER 0         ; Clear POWER
+    
+    POP POWER           ; Pop 20 into POWER (last in, first out)
+    POP TIME            ; Pop 10 into TIME
+    
+    PRINT               ; Should print TIME: 10
+    HALT
+"""
+
+# 4) REVERSE_NUMBERS: Use stack to reverse a sequence of numbers
+REVERSE_PROGRAM = """
+    ; Use stack to reverse numbers
+    ; Push several values, then pop them back in reverse order
+    
+    SET TIME 1
+    PUSH TIME
+    SET TIME 2  
+    PUSH TIME
+    SET TIME 3
+    PUSH TIME
+    SET TIME 4
+    PUSH TIME
+    SET TIME 5
+    PUSH TIME
+    
+    ; Now pop and print them in reverse order (5, 4, 3, 2, 1)
+pop_loop:
+    POP TIME
+    PRINT
+    ; Check if stack is empty by trying to peek (we'll use a simple counter instead)
+    SET POWER 4         ; We pushed 5 items, so we need 4 more pops after the first
+    
+pop_remaining:
+    DECJZ POWER done
+    POP TIME
+    PRINT
+    GOTO pop_remaining
+    
+done:
     HALT
 """
 
@@ -237,6 +330,7 @@ if __name__ == "__main__":
             print(f"Loaded program from: {filename}")
             vm.run()
             print("Final state:", vm.state())
+            print("Final stack:", vm.stack_state())
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.")
         except Exception as e:
@@ -248,4 +342,16 @@ if __name__ == "__main__":
         vm.run()
         print("ADD result:", vm.state())  # Expect TIME=5, POWER=0
 
-        # You can write and load your own programs similarly.
+        # Example 2: stack demo
+        print("\n--- Stack Demo ---")
+        vm.load_program(STACK_PROGRAM)
+        vm.reset_registers()
+        vm.run()
+        print("Stack demo result:", vm.full_state())
+
+        # Example 3: reverse demo  
+        print("\n--- Reverse Demo ---")
+        vm.load_program(REVERSE_PROGRAM)
+        vm.reset_registers()
+        vm.run()
+        print("Reverse demo result:", vm.full_state())

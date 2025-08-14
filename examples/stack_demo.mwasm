@@ -1,0 +1,23 @@
+; Stack demonstration program for MicrowaveVM
+; Shows basic PUSH and POP operations
+
+; Setup initial values
+SET TIME 100
+SET POWER 200
+
+; Push both values onto stack
+PUSH TIME    ; Stack: [100]
+PUSH POWER   ; Stack: [100, 200]
+
+; Clear registers
+SET TIME 0
+SET POWER 0
+
+; Pop values back (LIFO - Last In, First Out)
+POP TIME     ; TIME gets 200, Stack: [100]
+POP POWER    ; POWER gets 100, Stack: []
+
+; Print the result - TIME should be 200
+PRINT
+
+HALT
