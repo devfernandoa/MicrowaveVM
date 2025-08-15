@@ -30,21 +30,26 @@ class MicrowaveVM:
 
     def __init__(self):
         self.registers: Dict[Register, int] = {"TIME": 0, "POWER": 0}
+        self.readonly_registers: Dict[Register, int] = {"TEMP": 0, "WEIGHT": 100}  # WEIGHT in grams
         self.program: List[Instr] = []
         self.labels: Dict[str, int] = {}
         self.pc: int = 0
         self.halted: bool = False
         self.steps: int = 0
         self.stack: List[int] = []
+        self.ticks: int = 0  # Total execution ticks for thermal modeling
 
     # --- Assembler / Loader ---
     def load_program(self, source: str):
         self.program.clear()
         self.labels.clear()
         self.stack.clear()
+        self.readonly_registers["TEMP"] = 0  # Reset temperature
+        self.readonly_registers["WEIGHT"] = 100  # Default weight in grams
         self.pc = 0
         self.halted = False
         self.steps = 0
+        self.ticks = 0
 
         lines = source.splitlines()
         # First pass: collect labels
@@ -118,6 +123,10 @@ class MicrowaveVM:
 
         instr = self.program[self.pc]
         self.steps += 1
+        self.ticks += 1
+        
+        # Update thermal model after each instruction
+        self._update_thermal_model()
 
         def regname(s: str) -> str:
             return s.upper()
@@ -171,6 +180,30 @@ class MicrowaveVM:
             print("BEEEEEEP!")
             self.halted = True
 
+    def _update_thermal_model(self):
+        """
+        Simple thermal model for microwave heating:
+        - Temperature increases based on POWER and decreases naturally
+        - Heat transfer is affected by item weight (larger items heat slower)
+        - Simplified equation: dT = (POWER * 0.1 - TEMP * 0.02) / sqrt(WEIGHT/100)
+        """
+        power = self.registers.get('POWER', 0)
+        current_temp = self.readonly_registers['TEMP']
+        weight = self.readonly_registers['WEIGHT']
+        
+        # Heating rate proportional to power, cooling proportional to current temp
+        # Weight factor: heavier items require more energy to heat up
+        heating_rate = power * 0.1
+        cooling_rate = current_temp * 0.02
+        weight_factor = max(1.0, (weight / 100.0) ** 0.5)  # sqrt(weight_ratio)
+        
+        # Temperature change per tick
+        temp_change = (heating_rate - cooling_rate) / weight_factor
+        
+        # Update temperature (minimum 0, representing room temperature)
+        new_temp = max(0, current_temp + int(temp_change))
+        self.readonly_registers['TEMP'] = new_temp
+
     def run(self, max_steps: Optional[int] = None):
         while not self.halted:
             if max_steps is not None and self.steps >= max_steps:
@@ -181,25 +214,34 @@ class MicrowaveVM:
     def state(self) -> Dict[str, int]:
         return dict(self.registers)
 
-    def stack_state(self) -> List[int]:
-        return list(self.stack)
-
     def full_state(self) -> Dict:
         return {
             "registers": dict(self.registers),
+            "readonly_registers": dict(self.readonly_registers),
             "stack": list(self.stack),
             "pc": self.pc,
             "halted": self.halted,
-            "steps": self.steps
+            "steps": self.steps,
+            "ticks": self.ticks
         }
 
-    def reset_registers(self, TIME: int = 0, POWER: int = 0):
+    def set_weight(self, weight_grams: int):
+        """Set the weight of the item in the microwave (in grams)"""
+        self.readonly_registers['WEIGHT'] = max(1, weight_grams)  # Minimum 1 gram
+
+    def stack_state(self) -> List[int]:
+        return list(self.stack)
+
+    def reset_registers(self, TIME: int = 0, POWER: int = 0, WEIGHT: int = 100):
         self.registers["TIME"] = int(TIME)
         self.registers["POWER"] = int(POWER)
+        self.readonly_registers["TEMP"] = 0  # Reset to room temperature
+        self.readonly_registers["WEIGHT"] = max(1, int(WEIGHT))  # Set item weight
         self.stack.clear()
         self.pc = 0
         self.halted = False
         self.steps = 0
+        self.ticks = 0
 
 
 # --------- Demo programs ---------
@@ -330,6 +372,7 @@ if __name__ == "__main__":
             print(f"Loaded program from: {filename}")
             vm.run()
             print("Final state:", vm.state())
+            print("Final readonly state:", vm.readonly_registers)
             print("Final stack:", vm.stack_state())
         except FileNotFoundError:
             print(f"Error: File '{filename}' not found.")

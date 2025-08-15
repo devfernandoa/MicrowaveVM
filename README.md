@@ -13,20 +13,27 @@ MicrowaveVM is an educational virtual machine designed to demonstrate computatio
 
 ## 🏗️ Architecture
 
-### Registers
+### Writable Registers
 - **`TIME`**: General-purpose register (32-bit signed integer)
 - **`POWER`**: General-purpose register (32-bit signed integer)
+
+### Readonly Registers
+- **`TEMP`**: Current temperature of the item in the microwave (°C, computed by thermal model)
+- **`WEIGHT`**: Weight of the item in the microwave (grams, set at program initialization)
 
 ### Memory Model
 - No addressable memory beyond registers
 - Program counter (PC) for instruction sequencing
 - Label-based control flow (computed at load time)
+- Stack for temporary value storage (LIFO operations)
 
 ### Execution Model
 - Sequential instruction execution
 - Conditional branching based on zero-testing
 - Deterministic state transitions
 - Bounded by step limits (configurable, default: unlimited)
+- **Thermal simulation**: TEMP register updated each instruction tick based on POWER and WEIGHT
+- **Stack operations**: LIFO storage for temporary values
 
 ## 📝 Instruction Set Architecture (ISA)
 
@@ -37,6 +44,8 @@ MicrowaveVM is an educational virtual machine designed to demonstrate computatio
 | **DECJZ** | `DECJZ R label` | Decrement R; jump to label if zero | `DECJZ TIME loop_end` |
 | **GOTO** | `GOTO label` | Unconditional jump to label | `GOTO main_loop` |
 | **PRINT** | `PRINT` | Print current value of TIME register | `PRINT` |
+| **PUSH** | `PUSH R` | Push register value onto stack | `PUSH TIME` |
+| **POP** | `POP R` | Pop value from stack into register | `POP POWER` |
 | **HALT** | `HALT` | Stop program execution | `HALT` |
 
 ### Labels
@@ -44,6 +53,22 @@ MicrowaveVM is an educational virtual machine designed to demonstrate computatio
 label_name:     ; Define a jump target
     INC TIME    ; Instructions following the label
 ```
+
+### Thermal Model
+
+The MicrowaveVM includes a realistic thermal simulation that updates the `TEMP` register every instruction tick:
+
+```
+Temperature Change = (POWER × 0.1 - TEMP × 0.02) / √(WEIGHT/100)
+```
+
+**Model Characteristics:**
+- **Heating Rate**: Proportional to POWER setting (0.1°C per power unit per tick)
+- **Cooling Rate**: Natural heat loss proportional to current temperature (2% per tick)
+- **Weight Effect**: Heavier items require more energy to heat (square root relationship)
+- **Minimum Temperature**: Cannot go below 0°C (room temperature baseline)
+
+**Example**: A 200g item with POWER=50 will heat at roughly 3.5°C per tick initially, slowing as temperature rises.
 
 ## 🚀 Quick Start
 
@@ -58,6 +83,12 @@ cd MicrowaveVM
 # Run a program file
 python3 main.py examples/factorial.mwasm
 
+# Set item weight (default: 100g)
+vm = MicrowaveVM()
+vm.set_weight(250)  # 250 grams
+vm.load_program(program)
+vm.run()
+
 # Run without arguments for demo
 python3 main.py
 ```
@@ -65,38 +96,27 @@ python3 main.py
 ### Your First Program
 Create `hello.mwasm`:
 ```assembly
-; Count from 1 to 5
-    SET TIME 1      ; Start at 1
-    PRINT           ; Show current value
+; Microwave heating simulation
+    SET POWER 60        ; Set microwave to 60% power
+    SET TIME 30         ; Heat for 30 seconds
+    PRINT               ; Show initial time
 
-count_loop:
-    INC TIME        ; Increment counter
-    PRINT           ; Show new value
-    
-    ; Check if we've reached 5
-    SET POWER 5     ; Load target value
-    DECJZ POWER check_done  ; This won't work as intended...
-    
-    ; Better approach for comparison:
-    DECJZ TIME done     ; If TIME becomes 0, we're done
-    DECJZ TIME done     ; Check for 1
-    DECJZ TIME done     ; Check for 2  
-    DECJZ TIME done     ; Check for 3
-    DECJZ TIME done     ; Check for 4
-    DECJZ TIME done     ; If we reach here, TIME was 5
-    
-    ; Restore TIME and continue (this is complex...)
-    ; For simplicity, let's just halt after a few iterations:
-    GOTO count_loop
+heat_loop:
+    DECJZ TIME done     ; Count down timer
+    ; TEMP register automatically updates based on thermal model
+    GOTO heat_loop      ; Continue heating
 
 done:
-    HALT
+    PRINT               ; Show final time (0)
+    HALT                ; Microwave stops
 ```
 
 Run it:
 ```bash
 python3 main.py hello.mwasm
 ```
+
+The program will show the temperature evolution as the item heats up!
 
 ## 🧮 Example Programs
 
@@ -118,9 +138,10 @@ The `examples/` directory contains implementations of classical algorithms:
 When building a compiler targeting MicrowaveVM, consider these fundamental limitations:
 
 #### 1. **Register Pressure**
-- Only 2 registers available
-- No register spilling to memory
-- Requires careful register allocation and reuse
+- Only 2 writable registers available (TIME, POWER)
+- 2 readonly registers for simulation (TEMP, WEIGHT)
+- Stack available for temporary storage (PUSH/POP operations)
+- No register spilling to memory beyond stack
 - Consider using registers for multiple purposes within algorithms
 
 #### 2. **No Arithmetic Operations**
@@ -138,8 +159,10 @@ When building a compiler targeting MicrowaveVM, consider these fundamental limit
 #### 4. **Data Representation**
 - All values are signed integers
 - No floating-point support
-- Arrays/structures require encoding schemes
+- Arrays/structures require encoding schemes or stack usage
 - Boolean values: 0 (false) and non-zero (true)
+- **Thermal simulation**: TEMP register provides realistic microwave heating
+- **Weight modeling**: WEIGHT register affects heating characteristics
 
 ### Compilation Strategies
 
@@ -206,7 +229,13 @@ loop_end:
 
 **Pattern: Temporary Value Storage**
 ```assembly
-; Save TIME in POWER by transfer
+; Modern approach: Use stack for temporary storage
+    PUSH TIME           ; Save TIME value
+    SET TIME 42         ; Use TIME for calculation
+    ; ... do computation ...
+    POP TIME            ; Restore original TIME value
+
+; Legacy approach: Transfer between registers
 save_time:
     DECJZ TIME restore_time
     INC POWER
@@ -296,12 +325,16 @@ MicrowaveVM is Turing complete because it can simulate a Minsky machine:
 - Configurable execution limits
 - Error handling for undefined labels
 - State inspection utilities
+- **Thermal simulation**: Real-time temperature modeling
+- **Stack operations**: LIFO temporary storage with overflow detection
 
 ### Debugging
 - `PRINT` instruction for register inspection
 - Step-by-step execution mode available
 - Program counter tracking
 - Register state logging
+- **Thermal monitoring**: Track temperature changes during execution
+- **Stack inspection**: View current stack contents and depth
 
 ## 🤝 Contributing
 
