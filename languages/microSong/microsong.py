@@ -165,6 +165,10 @@ class Parser:
                     den    = int(m.group(4))
                     toks.append(("note", (name, acc, octave, den)))
                     continue
+                # Print temperature
+                if tok.lower() == "print_temp":
+                    toks.append(("print_temp", ()))
+                    continue
                 raise SystemExit(f"Bad token: {tok}")
 
         return toks, self.tempo_bpm, self.tpb
@@ -222,6 +226,8 @@ class Codegen:
             elif op == "rest":
                 (den,) = args
                 self.emit_rest(den)
+            elif op == "print_temp":
+                self.asm.emit("PRINT TEMP")
             else:
                 raise SystemExit(f"Internal: unknown token {op}")
         self.asm.emit("HALT")

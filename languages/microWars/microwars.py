@@ -128,6 +128,13 @@ class Parser:
                 self.script.append(("heal", (who, k)))
                 continue
 
+            # special "X" show_weight
+            m = re.match(r'^special\s+"([^"]+)"\s+show_weight\s*$', line, re.I)
+            if m:
+                who = m.group(1)
+                self.script.append(("show_weight", (who,)))
+                continue
+
             raise SystemExit(f"Unknown syntax: {line}")
 
         if len(self.units) != 2:
@@ -251,6 +258,8 @@ class Codegen:
                     raise SystemExit("Unknown unit in heal.")
                 self.emit_heal(self.units[who_name], k)
 
+            elif op == "show_weight":
+                self.asm.emit("PRINT WEIGHT")
             elif op == "end":
                 a.emit("HALT")
 
